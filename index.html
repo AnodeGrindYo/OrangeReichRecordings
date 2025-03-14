@@ -1,0 +1,55 @@
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orange Reich Recordings</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "tone": "https://cdn.skypack.dev/tone"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div class="circuit-background" id="circuitBackground"></div>
+    
+    <header>
+        <div class="header-circuit" id="headerCircuit"></div>
+        <div class="logo">
+            <svg viewBox="0 0 400 120">
+                <text x="10" y="60" class="logo-text">ORANGE REICH</text>
+                <text x="10" y="100" class="logo-subtext">RECORDINGS</text>
+            </svg>
+        </div>
+    </header>
+
+    <main>
+        <div class="controls">
+            <button id="shuffleAll" class="neon-button">SHUFFLE ALL</button>
+        </div>
+
+        <div id="trackList" class="track-list">
+            <!-- Tracks will be loaded here dynamically -->
+            <div class="loading">Loading tracks from local tracks directory...</div>
+        </div>
+    </main>
+
+    <div id="player" class="player">
+        <div class="player-info">
+            <div id="currentTrack">Aucun morceau sélectionné</div>
+            <div class="player-controls">
+                <button id="prevTrack">⏮</button>
+                <button id="playPause">⏯</button>
+                <button id="nextTrack">⏭</button>
+            </div>
+            <div class="progress-bar">
+                <div id="progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js" type="module"></script>
+</body>
+</html>
