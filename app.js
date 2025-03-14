@@ -320,19 +320,20 @@ class MusicPlayer {
     
             document.getElementById('currentTrack').textContent = 'Loading...';
     
-            // Télécharger le fichier WAV en Blob
+            // Télécharger le fichier WAV en ArrayBuffer
             const response = await fetch(track.url);
             if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
     
-            const blob = await response.blob();
-            const audioUrl = URL.createObjectURL(blob);
+            const arrayBuffer = await response.arrayBuffer();
     
-            // Recréer complètement l'instance de Tone.Player avec le nouvel audio
+            // Supprimer l'ancien player s'il existe
             if (this.player) {
-                this.player.dispose(); // Supprime l'ancien player pour éviter les conflits
+                this.player.dispose();
             }
     
-            this.player = new Tone.Player(audioUrl).toDestination();
+            // Charger directement l'ArrayBuffer dans Tone.js
+            this.player = new Tone.Player().toDestination();
+            await this.player.load(arrayBuffer);
     
             // Démarrer la lecture
             await this.player.start();
@@ -358,6 +359,7 @@ class MusicPlayer {
             document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
         }
     }
+    
     
     
     
