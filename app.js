@@ -147,62 +147,39 @@ class MusicPlayer {
     }
 
     async loadLocalTracks() {
+        const repoOwner = "AnodeGrindYo";
+        const repoName = "OrangeReichRecordings";
+        const folderPath = "tracks";
+        const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${folderPath}/`;
+    
         try {
-            // Fetch the tracks directory listing
-            const response = await fetch('/tracks/');
-            
-            if (!response.ok) {
-                // If we can't get a directory listing, fall back to a manifest file
-                await this.loadFromManifest();
-                return;
+            // Récupération des fichiers dans `tracks/`
+            const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`);
+            if (!response.ok) throw new Error('Impossible de charger les fichiers');
+    
+            const files = await response.json();
+    
+            // Filtrer uniquement les fichiers .wav
+            const trackList = files
+                .filter(file => file.name.endsWith(".wav"))
+                .map(file => ({
+                    title: file.name.replace(".wav", "").replace(/_/g, " "),
+                    url: baseUrl + file.name
+                }));
+    
+            if (trackList.length === 0) {
+                throw new Error('Aucun fichier WAV trouvé.');
             }
-            
-            const html = await response.text();
-            
-            // Extract WAV files using regex
-            const regex = /href="([^"]+\.wav)"/g;
-            const matches = [...html.matchAll(regex)];
-            
-            if (matches.length === 0) {
-                console.error('No WAV files found in the tracks directory');
-                document.getElementById('trackList').innerHTML = '<div class="error">No WAV files found in the tracks directory.</div>';
-                return;
-            }
-            
-            this.tracks = matches
-                .map(match => {
-                    const filename = decodeURIComponent(match[1]);
-                    
-                    // Parse artist and title from filename (Artist - Title.wav)
-                    const parts = filename.split(' - ');
-                    if (parts.length !== 2) return null;
-                    
-                    const artist = parts[0];
-                    const title = parts[1].replace('.wav', '');
-                    
-                    return {
-                        id: Math.random().toString(36).substr(2, 9),
-                        artist,
-                        title,
-                        fullTitle: `${artist} - ${title}`,
-                        url: `/tracks/${filename}`
-                    };
-                })
-                .filter(track => track !== null);
-            
-            if (this.tracks.length === 0) {
-                document.getElementById('trackList').innerHTML = '<div class="error">No valid WAV files found. Files should be named "Artist - Title.wav"</div>';
-                return;
-            }
-            
-            console.log('Loaded tracks:', this.tracks);
-            this.renderTracks();
+    
+            // Mettre à jour le player avec les morceaux récupérés
+            player.tracks = trackList;
+            player.renderTracks();
         } catch (error) {
-            console.error('Error fetching tracks:', error);
-            document.getElementById('trackList').innerHTML = `<div class="error">Error loading tracks: ${error.message}</div>`;
-            await this.loadFromManifest();
+            console.error('Erreur lors du chargement des morceaux:', error);
+            document.getElementById('trackList').innerHTML = `<div class="error">Erreur: ${error.message}</div>`;
         }
     }
+    
     
     async loadFromManifest() {
         try {
