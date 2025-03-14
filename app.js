@@ -319,17 +319,10 @@ class MusicPlayer {
     
             document.getElementById('currentTrack').textContent = 'Loading...';
     
-            // 🔎 Vérification du type MIME avant chargement
+            // 🔥 Télécharger en blob
             const response = await fetch(track.url);
             if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
     
-            const contentType = response.headers.get("Content-Type");
-            console.log("MIME Type:", contentType);
-            if (!contentType.includes("audio")) {
-                throw new Error("Le fichier téléchargé n'est pas un fichier audio valide.");
-            }
-    
-            // 🔥 Charger le fichier sous forme de Blob puis en URL
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             console.log("Generated Blob URL:", url);
@@ -339,10 +332,10 @@ class MusicPlayer {
                 this.player.dispose();
             }
     
-            // 🎵 Utiliser `Tone.Buffer` avant `Tone.Player`
-            const buffer = new Tone.Buffer(url, () => {
-                console.log("Buffer loaded successfully!");
-                this.player = new Tone.Player(buffer).toDestination();
+            // 🔥 🎵 Créer un lecteur HTML5 en backup si Tone.js échoue
+            this.player = new Tone.Player(url).toDestination();
+            this.player.on("load", () => {
+                console.log("Tone.js buffer loaded!");
                 this.player.start();
                 this.isPlaying = true;
     
@@ -360,11 +353,21 @@ class MusicPlayer {
                 }
             });
     
+            // 🎵 Si Tone.js échoue, utiliser `Audio()` en backup
+            this.player.on("error", () => {
+                console.warn("Tone.js failed. Using HTML5 Audio fallback.");
+                const audio = new Audio(url);
+                audio.play();
+                document.getElementById('playPause').textContent = '⏸';
+                this.isPlaying = true;
+            });
+    
         } catch (error) {
             console.error('Error playing track:', error);
             document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
         }
     }
+    
     
     
     
