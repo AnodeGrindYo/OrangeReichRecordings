@@ -147,14 +147,11 @@ class MusicPlayer {
     }
 
     async loadLocalTracks() {
-        const repoOwner = "AnodeGrindYo";
-        const repoName = "OrangeReichRecordings";
-        const folderPath = "tracks";
-        const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${folderPath}/`;
+        const baseUrl = "https://anodegrindyo.github.io/OrangeReichRecordings/tracks/";
     
         try {
-            const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`);
-            if (!response.ok) throw new Error('Impossible de charger les fichiers');
+            const response = await fetch("https://api.github.com/repos/AnodeGrindYo/OrangeReichRecordings/contents/tracks");
+            if (!response.ok) throw new Error("Impossible de charger les fichiers");
     
             const files = await response.json();
     
@@ -167,15 +164,15 @@ class MusicPlayer {
                 }));
     
             if (trackList.length === 0) {
-                throw new Error('Aucun fichier WAV trouvé.');
+                throw new Error("Aucun fichier WAV trouvé.");
             }
     
             // Mettre à jour le player avec les morceaux récupérés
             player.tracks = trackList;
             player.renderTracks();
         } catch (error) {
-            console.error('Erreur lors du chargement des morceaux:', error);
-            document.getElementById('trackList').innerHTML = `<div class="error">Erreur: ${error.message}</div>`;
+            console.error("Erreur lors du chargement des morceaux:", error);
+            document.getElementById("trackList").innerHTML = `<div class="error">Erreur: ${error.message}</div>`;
         }
     }
     
