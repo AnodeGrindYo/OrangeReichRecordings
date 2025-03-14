@@ -147,7 +147,7 @@ class MusicPlayer {
     }
 
     async loadLocalTracks() {
-        const baseUrl = "https://anodegrindyo.github.io/OrangeReichRecordings/tracks/";
+        const baseUrl = "https://raw.githubusercontent.com/AnodeGrindYo/OrangeReichRecordings/main/tracks/";
         const cacheBuster = new Date().getTime(); // Ajoute un timestamp pour éviter le cache
     
         try {
