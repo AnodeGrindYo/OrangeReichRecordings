@@ -319,41 +319,53 @@ class MusicPlayer {
     
             document.getElementById('currentTrack').textContent = 'Loading...';
     
-            // Télécharger l'audio en blob
+            // 🔎 Vérification du type MIME avant chargement
             const response = await fetch(track.url);
             if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
     
+            const contentType = response.headers.get("Content-Type");
+            console.log("MIME Type:", contentType);
+            if (!contentType.includes("audio")) {
+                throw new Error("Le fichier téléchargé n'est pas un fichier audio valide.");
+            }
+    
+            // 🔥 Charger le fichier sous forme de Blob puis en URL
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
+            console.log("Generated Blob URL:", url);
     
-            // Détruire le player existant
+            // ⚠️ Supprimer l'ancien player si nécessaire
             if (this.player) {
                 this.player.dispose();
             }
     
-            // Créer un nouveau player
-            this.player = new Tone.Player(url).toDestination();
-            await this.player.load();
-            this.player.start();
-            this.isPlaying = true;
+            // 🎵 Utiliser `Tone.Buffer` avant `Tone.Player`
+            const buffer = new Tone.Buffer(url, () => {
+                console.log("Buffer loaded successfully!");
+                this.player = new Tone.Player(buffer).toDestination();
+                this.player.start();
+                this.isPlaying = true;
     
-            document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
-            document.getElementById('playPause').textContent = '⏸';
+                document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
+                document.getElementById('playPause').textContent = '⏸';
     
-            const trackCards = document.querySelectorAll('.track-card');
-            if (trackCards[index]) {
-                trackCards[index].classList.add('playing-track');
-            }
+                const trackCards = document.querySelectorAll('.track-card');
+                if (trackCards[index]) {
+                    trackCards[index].classList.add('playing-track');
+                }
     
-            if (!window.audioAnalyzer) {
-                window.audioAnalyzer = new AudioAnalyzer(this.player);
-                this.startVisualization();
-            }
+                if (!window.audioAnalyzer) {
+                    window.audioAnalyzer = new AudioAnalyzer(this.player);
+                    this.startVisualization();
+                }
+            });
+    
         } catch (error) {
             console.error('Error playing track:', error);
             document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
         }
     }
+    
     
     
     
