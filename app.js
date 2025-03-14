@@ -148,9 +148,10 @@ class MusicPlayer {
 
     async loadLocalTracks() {
         const baseUrl = "https://anodegrindyo.github.io/OrangeReichRecordings/tracks/";
+        const cacheBuster = new Date().getTime(); // Ajoute un timestamp pour éviter le cache
     
         try {
-            const response = await fetch("https://api.github.com/repos/AnodeGrindYo/OrangeReichRecordings/contents/tracks");
+            const response = await fetch(`https://api.github.com/repos/AnodeGrindYo/OrangeReichRecordings/contents/tracks?timestamp=${cacheBuster}`);
             if (!response.ok) throw new Error("Impossible de charger les fichiers");
     
             const files = await response.json();
