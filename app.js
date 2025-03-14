@@ -298,7 +298,6 @@ class MusicPlayer {
     // }
 
     async playTrack(index) {
-        // Retirer la classe "playing-track" de tous les morceaux
         document.querySelectorAll('.track-card').forEach(card => {
             card.classList.remove('playing-track');
         });
@@ -320,40 +319,36 @@ class MusicPlayer {
     
             document.getElementById('currentTrack').textContent = 'Loading...';
     
-            // Télécharger le fichier WAV en ArrayBuffer
+            // Télécharger l'audio en blob
             const response = await fetch(track.url);
             if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
     
-            const arrayBuffer = await response.arrayBuffer();
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
     
-            // Supprimer l'ancien player s'il existe
+            // Détruire le player existant
             if (this.player) {
                 this.player.dispose();
             }
     
-            // Charger directement l'ArrayBuffer dans Tone.js
-            this.player = new Tone.Player().toDestination();
-            await this.player.load(arrayBuffer);
-    
-            // Démarrer la lecture
-            await this.player.start();
+            // Créer un nouveau player
+            this.player = new Tone.Player(url).toDestination();
+            await this.player.load();
+            this.player.start();
             this.isPlaying = true;
     
             document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
             document.getElementById('playPause').textContent = '⏸';
     
-            // Ajouter la classe "playing-track"
             const trackCards = document.querySelectorAll('.track-card');
             if (trackCards[index]) {
                 trackCards[index].classList.add('playing-track');
             }
     
-            // Initialiser l'analyseur audio si nécessaire
             if (!window.audioAnalyzer) {
                 window.audioAnalyzer = new AudioAnalyzer(this.player);
                 this.startVisualization();
             }
-    
         } catch (error) {
             console.error('Error playing track:', error);
             document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
