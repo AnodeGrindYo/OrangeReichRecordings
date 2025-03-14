@@ -249,53 +249,111 @@ class MusicPlayer {
         });
     }
 
+    // async playTrack(index) {
+    //     // Remove playing class from all cards
+    //     document.querySelectorAll('.track-card').forEach(card => {
+    //         card.classList.remove('playing-track');
+    //     });
+        
+    //     if (this.currentTrackIndex === index && this.isPlaying) {
+    //         await this.player.stop();
+    //         this.isPlaying = false;
+    //         document.getElementById('playPause').textContent = '⏯';
+    //         return;
+    //     }
+
+    //     this.currentTrackIndex = index;
+    //     const track = this.tracks[index];
+        
+    //     try {
+    //         if (!track.url) {
+    //             throw new Error('Track URL is missing. Please visit cors-anywhere.herokuapp.com for temporary access.');
+    //         }
+            
+    //         document.getElementById('currentTrack').textContent = 'Loading...';
+    //         await this.player.load(track.url);
+            
+    //         // Initialize audio analyzer if not already created
+    //         if (!window.audioAnalyzer) {
+    //             window.audioAnalyzer = new AudioAnalyzer(this.player);
+                
+    //             // Start visualization loop
+    //             this.startVisualization();
+    //         }
+            
+    //         await this.player.start();
+    //         this.isPlaying = true;
+    //         document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
+    //         document.getElementById('playPause').textContent = '⏸';
+            
+    //         // Add playing class to current track card
+    //         const trackCards = document.querySelectorAll('.track-card');
+    //         if (trackCards[index]) {
+    //             trackCards[index].classList.add('playing-track');
+    //         }
+    //     } catch (error) {
+    //         console.error('Error playing track:', error);
+    //         document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
+    //     }
+    // }
+
     async playTrack(index) {
         // Remove playing class from all cards
         document.querySelectorAll('.track-card').forEach(card => {
             card.classList.remove('playing-track');
         });
-        
+    
         if (this.currentTrackIndex === index && this.isPlaying) {
             await this.player.stop();
             this.isPlaying = false;
             document.getElementById('playPause').textContent = '⏯';
             return;
         }
-
+    
         this.currentTrackIndex = index;
         const track = this.tracks[index];
-        
+    
         try {
             if (!track.url) {
-                throw new Error('Track URL is missing. Please visit cors-anywhere.herokuapp.com for temporary access.');
+                throw new Error('Track URL is missing.');
             }
-            
+    
             document.getElementById('currentTrack').textContent = 'Loading...';
-            await this.player.load(track.url);
-            
-            // Initialize audio analyzer if not already created
+    
+            // Télécharge le fichier en blob et crée un ObjectURL
+            const response = await fetch(track.url);
+            if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
+    
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+    
+            // Charge le fichier avec Tone.js
+            this.player = new Tone.Player(audioUrl).toDestination();
+            await this.player.load();
+    
+            // Initialise l'analyseur audio si nécessaire
             if (!window.audioAnalyzer) {
                 window.audioAnalyzer = new AudioAnalyzer(this.player);
-                
-                // Start visualization loop
                 this.startVisualization();
             }
-            
+    
             await this.player.start();
             this.isPlaying = true;
             document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
             document.getElementById('playPause').textContent = '⏸';
-            
-            // Add playing class to current track card
+    
+            // Ajouter la classe "playing-track"
             const trackCards = document.querySelectorAll('.track-card');
             if (trackCards[index]) {
                 trackCards[index].classList.add('playing-track');
             }
+    
         } catch (error) {
             console.error('Error playing track:', error);
             document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
         }
     }
+    
     
     startVisualization() {
         const updateVisualization = () => {
