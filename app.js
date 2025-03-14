@@ -153,18 +153,17 @@ class MusicPlayer {
         const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${folderPath}/`;
     
         try {
-            // Récupération des fichiers dans `tracks/`
             const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`);
             if (!response.ok) throw new Error('Impossible de charger les fichiers');
     
             const files = await response.json();
     
-            // Filtrer uniquement les fichiers .wav
+            // Filtrer uniquement les fichiers .wav et encoder l’URL correctement
             const trackList = files
                 .filter(file => file.name.endsWith(".wav"))
                 .map(file => ({
                     title: file.name.replace(".wav", "").replace(/_/g, " "),
-                    url: baseUrl + file.name
+                    url: baseUrl + encodeURIComponent(file.name)
                 }));
     
             if (trackList.length === 0) {
