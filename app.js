@@ -298,13 +298,13 @@ class MusicPlayer {
     // }
 
     async playTrack(index) {
-        // Remove playing class from all cards
+        // Retirer la classe "playing-track" de tous les morceaux
         document.querySelectorAll('.track-card').forEach(card => {
             card.classList.remove('playing-track');
         });
     
         if (this.currentTrackIndex === index && this.isPlaying) {
-            await this.player.stop();
+            this.player.stop();
             this.isPlaying = false;
             document.getElementById('playPause').textContent = '⏯';
             return;
@@ -320,25 +320,24 @@ class MusicPlayer {
     
             document.getElementById('currentTrack').textContent = 'Loading...';
     
-            // Télécharge le fichier en blob et crée un ObjectURL
+            // Télécharger le fichier WAV en Blob
             const response = await fetch(track.url);
             if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
     
             const blob = await response.blob();
             const audioUrl = URL.createObjectURL(blob);
     
-            // Charge le fichier avec Tone.js
-            this.player = new Tone.Player(audioUrl).toDestination();
-            await this.player.load();
-    
-            // Initialise l'analyseur audio si nécessaire
-            if (!window.audioAnalyzer) {
-                window.audioAnalyzer = new AudioAnalyzer(this.player);
-                this.startVisualization();
+            // Recréer complètement l'instance de Tone.Player avec le nouvel audio
+            if (this.player) {
+                this.player.dispose(); // Supprime l'ancien player pour éviter les conflits
             }
     
+            this.player = new Tone.Player(audioUrl).toDestination();
+    
+            // Démarrer la lecture
             await this.player.start();
             this.isPlaying = true;
+    
             document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
             document.getElementById('playPause').textContent = '⏸';
     
@@ -348,11 +347,18 @@ class MusicPlayer {
                 trackCards[index].classList.add('playing-track');
             }
     
+            // Initialiser l'analyseur audio si nécessaire
+            if (!window.audioAnalyzer) {
+                window.audioAnalyzer = new AudioAnalyzer(this.player);
+                this.startVisualization();
+            }
+    
         } catch (error) {
             console.error('Error playing track:', error);
             document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
         }
     }
+    
     
     
     startVisualization() {
