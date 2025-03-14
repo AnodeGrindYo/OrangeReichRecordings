@@ -332,44 +332,38 @@ class MusicPlayer {
                 this.player.dispose();
             }
     
-            // 🔥 🎵 Créer un lecteur HTML5 en backup si Tone.js échoue
+            // 🎵 Utiliser Tone.Player avec Tone.loaded()
             this.player = new Tone.Player(url).toDestination();
-            this.player.on("load", () => {
-                console.log("Tone.js buffer loaded!");
-                this.player.start();
-                this.isPlaying = true;
     
-                document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
-                document.getElementById('playPause').textContent = '⏸';
+            await this.player.load(); // 🔥 Assure que le buffer est prêt
+            console.log("Tone.js buffer loaded!");
+            this.player.start();
+            this.isPlaying = true;
     
-                const trackCards = document.querySelectorAll('.track-card');
-                if (trackCards[index]) {
-                    trackCards[index].classList.add('playing-track');
-                }
+            document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
+            document.getElementById('playPause').textContent = '⏸';
     
-                if (!window.audioAnalyzer) {
-                    window.audioAnalyzer = new AudioAnalyzer(this.player);
-                    this.startVisualization();
-                }
-            });
+            const trackCards = document.querySelectorAll('.track-card');
+            if (trackCards[index]) {
+                trackCards[index].classList.add('playing-track');
+            }
     
-            // 🎵 Si Tone.js échoue, utiliser `Audio()` en backup
-            this.player.on("error", () => {
-                console.warn("Tone.js failed. Using HTML5 Audio fallback.");
-                const audio = new Audio(url);
-                audio.play();
-                document.getElementById('playPause').textContent = '⏸';
-                this.isPlaying = true;
-            });
+            if (!window.audioAnalyzer) {
+                window.audioAnalyzer = new AudioAnalyzer(this.player);
+                this.startVisualization();
+            }
     
         } catch (error) {
             console.error('Error playing track:', error);
-            document.getElementById('currentTrack').textContent = `Error: ${error.message}`;
+            console.warn("Tone.js failed. Using HTML5 Audio fallback.");
+    
+            // 🔥 Fallback avec HTML5 Audio si Tone.js échoue
+            const audio = new Audio(track.url);
+            audio.play();
+            document.getElementById('playPause').textContent = '⏸';
+            this.isPlaying = true;
         }
     }
-    
-    
-    
     
     
     
