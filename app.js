@@ -1,5 +1,8 @@
-import * as THREE from 'three';
-import WaveSurfer from 'wavesurfer';
+// import * as THREE from 'three';
+// import WaveSurfer from 'wavesurfer';
+const THREE = window.THREE;
+const WaveSurfer = window.WaveSurfer;
+
 
 document.addEventListener('DOMContentLoaded', () => {
     // Music Player State
