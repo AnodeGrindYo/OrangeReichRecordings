@@ -1,0 +1,515 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@300;400;700&display=swap');
+
+:root {
+    --primary-color: #ff6600;
+    --primary-color-dark: #cc5200;
+    --background-color: #0a0a0a;
+    --surface-color: #111111;
+    --surface-color-light: #1e1e1e;
+    --text-color: #f0f0f0;
+    --text-color-dim: #a0a0a0;
+    --accent-color: #ff3c00;
+    --shadow-color: rgba(0, 0, 0, 0.7);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.noise-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.vignette-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.9);
+    z-index: 9;
+    pointer-events: none;
+}
+
+header {
+    background-color: var(--surface-color);
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px var(--shadow-color);
+    text-align: center;
+    position: relative;
+    border-bottom: 3px solid var(--primary-color);
+    z-index: 2;
+}
+
+.logo-container {
+    margin: 0 auto;
+    width: 80px;
+    height: 80px;
+}
+
+#logo {
+    width: 100%;
+    height: auto;
+}
+
+.logo-shape {
+    transition: all 0.5s;
+}
+
+.logo-text {
+    fill: var(--primary-color);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+h1 {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1.5rem;
+    margin-top: 10px;
+    letter-spacing: 2px;
+    color: var(--primary-color);
+    text-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
+}
+
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px var(--shadow-color);
+}
+
+h2 {
+    font-family: 'Roboto Mono', monospace;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color-dark);
+    padding-bottom: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+/* Player Section */
+#player-section {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    position: relative;
+}
+
+#visualizer-container {
+    height: 200px;
+    background-color: var(--surface-color-light);
+    position: relative;
+    overflow: hidden;
+}
+
+#waveform {
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    z-index: 3;
+}
+
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+}
+
+.player-controls {
+    padding: 1.5rem;
+    background-color: var(--surface-color);
+    border-top: 2px solid var(--primary-color);
+}
+
+.track-info {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.track-info h2 {
+    border: none;
+    margin-bottom: 0.2rem;
+    padding: 0;
+    font-size: 1.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-info p {
+    color: var(--text-color-dim);
+    font-size: 0.9rem;
+}
+
+.control-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.control-buttons button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.control-buttons button:hover {
+    background-color: var(--surface-color-light);
+    color: var(--primary-color);
+}
+
+#play-btn {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+    font-size: 1.4rem;
+}
+
+#play-btn:hover {
+    background-color: var(--primary-color-dark);
+    color: white;
+    transform: scale(1.05);
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.volume-control i {
+    color: var(--text-color-dim);
+    width: 20px;
+}
+
+#volume {
+    width: 80px;
+    -webkit-appearance: none;
+    height: 5px;
+    background: var(--surface-color-light);
+    border-radius: 5px;
+}
+
+#volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#progress-bar {
+    flex-grow: 1;
+    height: 5px;
+    background-color: var(--surface-color-light);
+    border-radius: 5px;
+    position: relative;
+    cursor: pointer;
+}
+
+#progress {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 5px;
+    width: 0;
+    position: relative;
+}
+
+#progress::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+#progress-bar:hover #progress::after {
+    opacity: 1;
+}
+
+#current-time, #duration {
+    font-family: 'Roboto Mono', monospace;
+    color: var(--text-color-dim);
+    font-size: 0.9rem;
+    min-width: 45px;
+}
+
+/* Tracks Section */
+.track-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.track-card {
+    background-color: var(--surface-color-light);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s, transform 0.1s;
+    cursor: pointer;
+    position: relative;
+}
+
+.track-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.track-card-image {
+    height: 150px;
+    background: linear-gradient(45deg, var(--primary-color-dark), var(--primary-color));
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.track-card-image svg {
+    width: 80px;
+    height: 80px;
+    opacity: 0.7;
+}
+
+.track-card-image::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(0, 0, 0, 0.1) 10px,
+        rgba(0, 0, 0, 0.1) 20px
+    );
+}
+
+.track-card-content {
+    padding: 1rem;
+}
+
+.track-card-title {
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-card-artist {
+    color: var(--text-color-dim);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.track-card-buttons {
+    display: flex;
+    justify-content: space-between;
+}
+
+.track-card-buttons button {
+    background: none;
+    border: none;
+    color: var(--text-color-dim);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 5px;
+    transition: color 0.2s;
+}
+
+.track-card-buttons button:hover {
+    color: var(--primary-color);
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-color-dim);
+    grid-column: 1 / -1;
+}
+
+.playing-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: var(--primary-color);
+    color: var(--background-color);
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    display: none;
+}
+
+.track-card.current-track .playing-indicator {
+    display: block;
+}
+
+.track-card.current-track.reactive {
+    border-color: var(--primary-color);
+    border-width: 2px;
+}
+
+.audio-reactive {
+    transition: all 0.1s ease;
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 5px rgba(255, 102, 0, 0.5); }
+    100% { box-shadow: 0 0 20px rgba(255, 102, 0, 0.8); }
+}
+
+.pulsing {
+    animation: pulseGlow 0.5s alternate infinite;
+}
+
+/* About Section */
+#about-section {
+    display: none;
+}
+
+/* Footer */
+footer {
+    background-color: var(--surface-color);
+    padding: 1.5rem;
+    text-align: center;
+    border-top: 3px solid var(--primary-color);
+    margin-top: 2rem;
+}
+
+footer p {
+    color: var(--text-color-dim);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.social-links a {
+    color: var(--text-color);
+    font-size: 1.5rem;
+    transition: color 0.2s;
+}
+
+.social-links a:hover {
+    color: var(--primary-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.2rem;
+    }
+    
+    .control-buttons {
+        gap: 0.5rem;
+    }
+    
+    .control-buttons button {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    
+    #visualizer-container {
+        height: 150px;
+    }
+    
+    .track-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    
+    .social-links {
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-container {
+        width: 60px;
+        height: 60px;
+    }
+    
+    h1 {
+        font-size: 1rem;
+    }
+    
+    section {
+        padding: 1rem;
+    }
+    
+    .control-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    #visualizer-container {
+        height: 120px;
+    }
+    
+    .track-grid {
+        grid-template-columns: 1fr;
+    }
+}

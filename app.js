@@ -1,468 +1,508 @@
-import * as Tone from 'tone';
+import * as THREE from 'three';
+import WaveSurfer from 'wavesurfer';
 
-class AudioAnalyzer {
-    constructor(player) {
-        this.player = player;
-        this.meter = new Tone.Meter();
-        this.fft = new Tone.FFT(128);
-        this.waveform = new Tone.Waveform(1024);
-        this.player.connect(this.meter);
-        this.player.connect(this.fft);
-        this.player.connect(this.waveform);
-        this.smoothedValue = 0;
-        this.smoothingFactor = 0.8;
-        
-        // Create visualizer bars
-        this.createVisualizer();
-    }
-    
-    createVisualizer() {
-        const visualizer = document.createElement('div');
-        visualizer.className = 'visualizer';
-        
-        // Create 32 bars for the visualizer
-        for (let i = 0; i < 32; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'visualizer-bar';
-            visualizer.appendChild(bar);
-        }
-        
-        document.querySelector('.player-info').appendChild(visualizer);
-    }
-    
-    getVolume() {
-        return this.meter.getValue();
-    }
-    
-    getEnergy() {
-        this.smoothedValue = this.smoothedValue * this.smoothingFactor + 
-                            Math.abs(this.getVolume()) * (1 - this.smoothingFactor);
-        return Math.min(1, Math.max(0, (this.smoothedValue + 100) / 70));
-    }
-    
-    getSpectrum() {
-        return this.fft.getValue();
-    }
-    
-    updateVisualizer() {
-        if (!this.player.loaded || !this.player.playing) return;
-        
-        const spectrum = this.fft.getValue();
-        const bars = document.querySelectorAll('.visualizer-bar');
-        const energyLevel = this.getEnergy();
-        
-        // Update player highlights
-        document.querySelector('.player').classList.toggle('active', energyLevel > 0.5);
-        
-        // Get a subset of spectrum values for visualization
-        const spectrumSlice = spectrum.slice(0, Math.min(bars.length, spectrum.length));
-        
-        // Update bars based on FFT data
-        for (let i = 0; i < bars.length; i++) {
-            const index = Math.floor(i * (spectrumSlice.length / bars.length));
-            const value = spectrumSlice[index];
-            // Convert dB value to height percentage (dB is typically negative)
-            const height = Math.max(3, ((value + 100) / 70) * 40);
-            bars[i].style.height = `${height}px`;
-            
-            // Add color variation based on frequency
-            const hue = (i / bars.length) * 60 + 10; // Orange-ish range
-            bars[i].style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
-        }
-    }
-}
-
-// Create circuit animations
 document.addEventListener('DOMContentLoaded', () => {
-    // Add the script tag for circuit.js
-    const scriptTag = document.createElement('script');
-    scriptTag.src = 'circuit.js';
-    document.head.appendChild(scriptTag);
-    
-    scriptTag.onload = () => {
-        // Initialize background circuit animation
-        new CircuitAnimator('circuitBackground', {
-            lineColor: 'rgba(255, 107, 0, 0.3)',
-            nodeColor: 'rgba(255, 107, 0, 0.5)',
-            lineWidth: 1,
-            nodeSize: 3,
-            nodeCount: 30,
-            speed: 0.2,
-            complexity: 0.5,
-            audioReactive: true,
-            reactivity: 0.7
-        });
-        
-        // Initialize header circuit animation
-        new CircuitAnimator('headerCircuit', {
-            lineColor: 'rgba(255, 255, 255, 0.3)',
-            nodeColor: 'rgba(255, 255, 255, 0.6)',
-            lineWidth: 2,
-            nodeSize: 3,
-            nodeCount: 20,
-            speed: 0.5,
-            complexity: 0.7,
-            audioReactive: true,
-            reactivity: 1.2
-        });
+    // Music Player State
+    const state = {
+        tracks: [],
+        currentTrackIndex: 0,
+        isPlaying: false,
+        isShuffled: false,
+        isRepeating: false,
+        volume: 0.7,
+        audioContext: null,
+        analyser: null,
+        dataArray: null
     };
-});
 
-class MusicPlayer {
-    constructor() {
-        this.tracks = [];
-        this.currentTrackIndex = -1;
-        this.player = new Tone.Player().toDestination();
-        this.isPlaying = false;
-        
-        this.loadLocalTracks();
-        this.initializeControls();
-    }
+    // DOM Elements
+    const playBtn = document.getElementById('play-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const volumeControl = document.getElementById('volume');
+    const repeatBtn = document.getElementById('repeat-btn');
+    const shuffleBtn = document.getElementById('shuffle-btn');
+    const downloadBtn = document.getElementById('download-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progress = document.getElementById('progress');
+    const currentTimeDisplay = document.getElementById('current-time');
+    const durationDisplay = document.getElementById('duration');
+    const trackTitle = document.getElementById('track-title');
+    const trackArtist = document.getElementById('track-artist');
+    const trackList = document.getElementById('track-list');
 
-    generateCover(trackId) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = canvas.height = 300;
+    // Initialize WaveSurfer
+    const wavesurfer = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: '#8f8f8f',
+        progressColor: '#ff6600',
+        cursorColor: '#ffffff',
+        barWidth: 2,
+        barRadius: 2,
+        cursorWidth: 0,
+        height: 200,
+        barGap: 2,
+        responsive: true,
+        interact: true,
+        normalize: true,
+        partialRender: true,
+    });
 
-        // Génération procédurale de la pochette
-        const gradient = ctx.createLinearGradient(0, 0, 300, 300);
-        gradient.addColorStop(0, `hsl(${Math.random() * 360}, 70%, 50%)`);
-        gradient.addColorStop(1, `hsl(${Math.random() * 360}, 70%, 20%)`);
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 300, 300);
+    // Initialize Audio Visualizer with Three.js
+    const visualizer = initVisualizer();
 
-        // Ajout de formes géométriques
-        for (let i = 0; i < 5; i++) {
-            ctx.beginPath();
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5})`;
-            ctx.moveTo(Math.random() * 300, Math.random() * 300);
-            ctx.lineTo(Math.random() * 300, Math.random() * 300);
-            ctx.lineTo(Math.random() * 300, Math.random() * 300);
-            ctx.closePath();
-            ctx.fill();
+    // Fetch tracks from GitHub repository
+    fetchTracks();
+
+    // Event Listeners
+    playBtn.addEventListener('click', togglePlay);
+    prevBtn.addEventListener('click', playPreviousTrack);
+    nextBtn.addEventListener('click', playNextTrack);
+    volumeControl.addEventListener('input', updateVolume);
+    repeatBtn.addEventListener('click', toggleRepeat);
+    shuffleBtn.addEventListener('click', toggleShuffle);
+    downloadBtn.addEventListener('click', downloadCurrentTrack);
+    progressBar.addEventListener('click', seekTrack);
+
+    // WaveSurfer Events
+    wavesurfer.on('ready', () => {
+        updateTrackInfo();
+        wavesurfer.setVolume(state.volume);
+
+        if (!state.audioContext) {
+            setupAudioAnalyser();
         }
-
-        return canvas.toDataURL();
-    }
-
-    async loadLocalTracks() {
-        const baseUrl = "https://raw.githubusercontent.com/AnodeGrindYo/OrangeReichRecordings/main/tracks/";
-        const cacheBuster = new Date().getTime(); // Ajoute un timestamp pour éviter le cache
-    
-        try {
-            const response = await fetch(`https://api.github.com/repos/AnodeGrindYo/OrangeReichRecordings/contents/tracks?timestamp=${cacheBuster}`);
-            if (!response.ok) throw new Error("Impossible de charger les fichiers");
-    
-            const files = await response.json();
-    
-            // Filtrer uniquement les fichiers .wav et encoder l’URL correctement
-            const trackList = files
-                .filter(file => file.name.endsWith(".wav"))
-                .map(file => ({
-                    title: file.name.replace(".wav", "").replace(/_/g, " "),
-                    url: baseUrl + encodeURIComponent(file.name)
-                }));
-    
-            if (trackList.length === 0) {
-                throw new Error("Aucun fichier WAV trouvé.");
-            }
-    
-            // Mettre à jour le player avec les morceaux récupérés
-            player.tracks = trackList;
-            player.renderTracks();
-        } catch (error) {
-            console.error("Erreur lors du chargement des morceaux:", error);
-            document.getElementById("trackList").innerHTML = `<div class="error">Erreur: ${error.message}</div>`;
-        }
-    }
-    
-    
-    async loadFromManifest() {
-        try {
-            // Try to load a tracks.json manifest file as fallback
-            const response = await fetch('/tracks/tracks.json');
-            if (!response.ok) {
-                throw new Error('No tracks directory listing or manifest file found');
-            }
-            
-            const tracksData = await response.json();
-            this.tracks = tracksData.map(track => ({
-                id: Math.random().toString(36).substr(2, 9),
-                artist: track.artist,
-                title: track.title,
-                fullTitle: `${track.artist} - ${track.title}`,
-                url: `/tracks/${track.filename || `${track.artist} - ${track.title}.wav`}`
-            }));
-            
-            if (this.tracks.length === 0) {
-                throw new Error('No tracks found in manifest');
-            }
-            
-            console.log('Loaded tracks from manifest:', this.tracks);
-            this.renderTracks();
-        } catch (error) {
-            console.error('Error loading manifest:', error);
-            document.getElementById('trackList').innerHTML = `<div class="error">Error loading tracks: ${error.message}<br>Place your WAV files in a 'tracks' folder at the root of your GitHub Pages site.</div>`;
-        }
-    }
-    
-    initializeControls() {
-        document.getElementById('shuffleAll').addEventListener('click', () => this.shuffleAll());
-        document.getElementById('playPause').addEventListener('click', () => this.togglePlay());
-        document.getElementById('prevTrack').addEventListener('click', () => this.previousTrack());
-        document.getElementById('nextTrack').addEventListener('click', () => this.nextTrack());
         
-        // Mise à jour de la barre de progression
-        setInterval(() => {
-            if (this.isPlaying) {
-                const progress = (this.player.currentTime / this.player.buffer.duration) * 100;
-                document.getElementById('progress').style.width = `${progress}%`;
-            }
-        }, 100);
+        if (state.isPlaying) {
+            wavesurfer.play();
+            updatePlayButton(true);
+            animateVisualizer();
+        }
+        
+        displayDuration(wavesurfer.getDuration());
+    });
+
+    wavesurfer.on('audioprocess', updateProgress);
+    wavesurfer.on('finish', onTrackFinish);
+    
+    // Functions
+    function fetchTracks() {
+        // GitHub API: Get contents of tracks directory
+        fetch('https://api.github.com/repos/AnodeGrindYo/OrangeReichRecordings/contents/tracks')
+            .then(response => response.json())
+            .then(data => {
+                // Filter only .wav files
+                state.tracks = data
+                    .filter(file => file.name.toLowerCase().endsWith('.wav'))
+                    .map(file => ({
+                        name: file.name.replace('.wav', ''), // Remove extension for display
+                        url: file.download_url,
+                        artist: extractArtistFromFilename(file.name)
+                    }));
+                
+                if (state.tracks.length > 0) {
+                    renderTrackList();
+                    loadTrack(0);
+                } else {
+                    trackList.innerHTML = '<div class="loading">Aucun morceau trouvé</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching tracks:', error);
+                trackList.innerHTML = '<div class="loading">Erreur lors du chargement des morceaux</div>';
+            });
     }
 
-    renderTracks() {
-        const trackList = document.getElementById('trackList');
+    function extractArtistFromFilename(filename) {
+        // Attempt to extract artist from filename format: "Artist - Title.wav"
+        const parts = filename.split(' - ');
+        if (parts.length > 1) {
+            return parts[0];
+        }
+        return 'Orange Reich Recordings';
+    }
+
+    function renderTrackList() {
         trackList.innerHTML = '';
-
-        if (this.tracks.length === 0) {
-            trackList.innerHTML = '<div class="error">No tracks found. Please try again later.</div>';
-            return;
-        }
-
-        this.tracks.forEach((track, index) => {
-            const card = document.createElement('div');
-            card.className = 'track-card';
-            card.innerHTML = `
-                <div class="track-art" style="background-image: url('${this.generateCover(track.id)}'); background-size: cover;"></div>
-                <div class="track-info">
-                    <div class="track-title">${track.fullTitle || track.title}</div>
-                    <div class="track-artist">${track.artist || ''}</div>
-                    <div class="track-buttons">
-                        <button onclick="player.playTrack(${index})">PLAY</button>
-                        <button onclick="player.downloadTrack(${index})">DOWNLOAD</button>
+        
+        state.tracks.forEach((track, index) => {
+            const trackCard = document.createElement('div');
+            trackCard.className = 'track-card';
+            trackCard.dataset.index = index;
+            
+            if (index === state.currentTrackIndex) {
+                trackCard.classList.add('current-track');
+            }
+            
+            trackCard.innerHTML = `
+                <div class="track-card-image">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6.5A5.5,5.5 0 0,1 17.5,12A5.5,5.5 0 0,1 12,17.5A5.5,5.5 0 0,1 6.5,12A5.5,5.5 0 0,1 12,6.5M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z" />
+                    </svg>
+                </div>
+                <div class="playing-indicator">PLAYING</div>
+                <div class="track-card-content">
+                    <h3 class="track-card-title">${track.name}</h3>
+                    <p class="track-card-artist">${track.artist}</p>
+                    <div class="track-card-buttons">
+                        <button class="play-track-btn" title="Play">
+                            <i class="fas fa-play"></i> Play
+                        </button>
+                        <button class="download-track-btn" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
                     </div>
                 </div>
             `;
-            trackList.appendChild(card);
+            
+            trackList.appendChild(trackCard);
+            
+            // Add click event to the track card
+            trackCard.querySelector('.play-track-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const index = parseInt(trackCard.dataset.index);
+                if (index === state.currentTrackIndex && state.isPlaying) {
+                    wavesurfer.pause();
+                    updatePlayButton(false);
+                } else {
+                    loadTrack(index);
+                    wavesurfer.play();
+                    updatePlayButton(true);
+                }
+            });
+            
+            trackCard.querySelector('.download-track-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadTrack(track);
+            });
         });
     }
 
-    // async playTrack(index) {
-    //     document.querySelectorAll('.track-card').forEach(card => {
-    //         card.classList.remove('playing-track');
-    //     });
-    
-    //     if (this.currentTrackIndex === index && this.isPlaying) {
-    //         this.player.stop();
-    //         this.isPlaying = false;
-    //         document.getElementById('playPause').textContent = '⏯';
-    //         return;
-    //     }
-    
-    //     this.currentTrackIndex = index;
-    //     const track = this.tracks[index];
-    
-    //     try {
-    //         if (!track.url) {
-    //             throw new Error('Track URL is missing.');
-    //         }
-    
-    //         document.getElementById('currentTrack').textContent = 'Loading...';
-    
-    //         // 🔥 Télécharger en blob
-    //         const response = await fetch(track.url);
-    //         if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
-    
-    //         const blob = await response.blob();
-    //         const url = URL.createObjectURL(blob);
-    //         console.log("Generated Blob URL:", url);
-    
-    //         // ⚠️ Supprimer l'ancien player si nécessaire
-    //         if (this.player) {
-    //             this.player.dispose();
-    //         }
-    
-    //         // 🎵 Utiliser Tone.Player avec Tone.loaded()
-    //         this.player = new Tone.Player(url).toDestination();
-    
-    //         await this.player.load(); // 🔥 Assure que le buffer est prêt
-    //         console.log("Tone.js buffer loaded!");
-    //         this.player.start();
-    //         this.isPlaying = true;
-    
-    //         document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
-    //         document.getElementById('playPause').textContent = '⏸';
-    
-    //         const trackCards = document.querySelectorAll('.track-card');
-    //         if (trackCards[index]) {
-    //             trackCards[index].classList.add('playing-track');
-    //         }
-    
-    //         if (!window.audioAnalyzer) {
-    //             window.audioAnalyzer = new AudioAnalyzer(this.player);
-    //             this.startVisualization();
-    //         }
-    
-    //     } catch (error) {
-    //         console.error('Error playing track:', error);
-    //         console.warn("Tone.js failed. Using HTML5 Audio fallback.");
-    
-    //         // 🔥 Fallback avec HTML5 Audio si Tone.js échoue
-    //         const audio = new Audio(track.url);
-    //         audio.play();
-    //         document.getElementById('playPause').textContent = '⏸';
-    //         this.isPlaying = true;
-    //     }
-    // }
-     
-    async playTrack(index) {
-        // S'assurer qu'on ne joue qu'un seul morceau à la fois
-        if (this.currentTrackIndex === index && this.isPlaying) {
-            this.stop();
-            return;
-        }
-    
-        // Mise à jour de l'index
-        this.currentTrackIndex = index;
-        const track = this.tracks[index];
-    
-        try {
-            if (!track.url) throw new Error('Track URL is missing.');
-    
-            document.getElementById('currentTrack').textContent = 'Loading...';
-    
-            // 🔥 Télécharger le fichier en blob
-            const response = await fetch(track.url);
-            if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
-            
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            console.log("Generated Blob URL:", blobUrl);
-    
-            // ⚠️ Stopper toute lecture en cours avant de démarrer
-            this.stop();
-    
-            // 🎵 Créer un nouveau lecteur Tone.js
-            this.player = new Tone.Player(blobUrl).toDestination();
-    
-            // Charger le buffer
-            await this.player.load();
-            console.log("Tone.js buffer loaded!");
-            
-            // Démarrer la lecture
-            this.player.start();
-            this.isPlaying = true;
-    
-            // Mise à jour de l'affichage
-            this.updateUI(track);
-    
-            // Lancer la visualisation
-            if (!window.audioAnalyzer) {
-                window.audioAnalyzer = new AudioAnalyzer(this.player);
-                this.startVisualization();
-            }
-        } catch (error) {
-            console.error('Error playing track:', error);
-            console.warn("Tone.js failed. Using HTML5 Audio fallback.");
-    
-            // 🔥 Fallback avec HTML5 Audio
-            this.stop(); // S'assurer que tout est stoppé avant de jouer
-    
-            this.htmlAudio = new Audio(track.url);
-            this.htmlAudio.onended = () => this.handleTrackEnd();
-            this.htmlAudio.onerror = () => console.error("HTML5 Audio playback error");
-    
-            this.htmlAudio.play().then(() => {
-                this.isPlaying = true;
-                this.updateUI(track);
-            }).catch(err => console.error("Failed to start HTML5 Audio", err));
-        }
-    }
-       
-    stop() {
-        if (this.player && this.isPlaying) {
-            this.player.stop();
-        }
-        if (this.htmlAudio && !this.htmlAudio.paused) {
-            this.htmlAudio.pause();
-            this.htmlAudio.currentTime = 0;
-        }
-        this.isPlaying = false;
-        document.getElementById('playPause').textContent = '⏯';
-    }
-    
-    handleTrackEnd() {
-        this.isPlaying = false;
-        document.getElementById('playPause').textContent = '⏯';
-        if (this.currentTrackIndex < this.tracks.length - 1) {
-            this.playTrack(this.currentTrackIndex + 1);
-        }
-    }
-    
-    updateUI(track) {
-        document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
-        document.getElementById('playPause').textContent = '⏸';
-    
-        // Marquer la piste en cours de lecture
-        document.querySelectorAll('.track-card').forEach((card, i) => {
-            card.classList.toggle('playing-track', i === this.currentTrackIndex);
-        });
-    }
-    
-    
-    startVisualization() {
-        const updateVisualization = () => {
-            if (window.audioAnalyzer) {
-                window.audioAnalyzer.updateVisualizer();
-            }
-            requestAnimationFrame(updateVisualization);
-        };
-        updateVisualization();
-    }
-
-    async togglePlay() {
-        if (this.currentTrackIndex === -1) return;
+    function loadTrack(index) {
+        if (index < 0 || index >= state.tracks.length) return;
         
-        if (this.isPlaying) {
-            await this.player.pause();
-            document.getElementById('playPause').textContent = '⏯';
+        state.currentTrackIndex = index;
+        const track = state.tracks[index];
+        
+        // Update UI
+        trackTitle.textContent = 'Chargement...';
+        trackArtist.textContent = track.artist;
+        
+        // Load audio file
+        wavesurfer.load(track.url);
+        
+        // Mark current track in the list
+        document.querySelectorAll('.track-card').forEach(card => {
+            card.classList.remove('current-track');
+        });
+        
+        const currentCard = document.querySelector(`.track-card[data-index="${index}"]`);
+        if (currentCard) {
+            currentCard.classList.add('current-track');
+            currentCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    function updateTrackInfo() {
+        const track = state.tracks[state.currentTrackIndex];
+        trackTitle.textContent = track.name;
+        trackArtist.textContent = track.artist;
+    }
+
+    function togglePlay() {
+        if (wavesurfer.isPlaying()) {
+            wavesurfer.pause();
+            updatePlayButton(false);
+            state.isPlaying = false;
         } else {
-            await this.player.start();
-            document.getElementById('playPause').textContent = '⏸';
-        }
-        this.isPlaying = !this.isPlaying;
-    }
-
-    async previousTrack() {
-        if (this.currentTrackIndex > 0) {
-            await this.playTrack(this.currentTrackIndex - 1);
+            wavesurfer.play();
+            updatePlayButton(true);
+            state.isPlaying = true;
+            if (state.audioContext && state.analyser) {
+                animateVisualizer();
+            }
         }
     }
 
-    async nextTrack() {
-        if (this.currentTrackIndex < this.tracks.length - 1) {
-            await this.playTrack(this.currentTrackIndex + 1);
+    function updatePlayButton(isPlaying) {
+        const icon = playBtn.querySelector('i');
+        if (isPlaying) {
+            icon.className = 'fas fa-pause';
+        } else {
+            icon.className = 'fas fa-play';
         }
     }
 
-    shuffleAll() {
-        const shuffledIndices = [...Array(this.tracks.length).keys()]
-            .sort(() => Math.random() - 0.5);
-        this.playQueue = shuffledIndices;
-        this.playTrack(this.playQueue[0]);
+    function playPreviousTrack() {
+        let index = state.currentTrackIndex - 1;
+        if (index < 0) index = state.tracks.length - 1;
+        loadTrack(index);
+        if (state.isPlaying) {
+            wavesurfer.play();
+        }
     }
 
-    downloadTrack(index) {
-        const track = this.tracks[index];
-        const link = document.createElement('a');
-        link.href = track.url;
-        link.download = `${track.fullTitle || track.title}.wav`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    function playNextTrack() {
+        let index;
+        if (state.isShuffled) {
+            index = Math.floor(Math.random() * state.tracks.length);
+        } else {
+            index = (state.currentTrackIndex + 1) % state.tracks.length;
+        }
+        loadTrack(index);
+        if (state.isPlaying) {
+            wavesurfer.play();
+        }
     }
-}
 
-window.player = new MusicPlayer();
+    function onTrackFinish() {
+        if (state.isRepeating) {
+            wavesurfer.play();
+        } else {
+            playNextTrack();
+        }
+    }
+
+    function updateVolume() {
+        const volume = parseFloat(volumeControl.value);
+        wavesurfer.setVolume(volume);
+        state.volume = volume;
+    }
+
+    function toggleRepeat() {
+        state.isRepeating = !state.isRepeating;
+        repeatBtn.classList.toggle('active', state.isRepeating);
+        if (state.isRepeating) {
+            repeatBtn.style.color = '#ff6600';
+        } else {
+            repeatBtn.style.color = '';
+        }
+    }
+
+    function toggleShuffle() {
+        state.isShuffled = !state.isShuffled;
+        shuffleBtn.classList.toggle('active', state.isShuffled);
+        if (state.isShuffled) {
+            shuffleBtn.style.color = '#ff6600';
+        } else {
+            shuffleBtn.style.color = '';
+        }
+    }
+
+    function downloadCurrentTrack() {
+        const track = state.tracks[state.currentTrackIndex];
+        downloadTrack(track);
+    }
+
+    function downloadTrack(track) {
+        const a = document.createElement('a');
+        a.href = track.url;
+        a.download = `${track.name}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function seekTrack(e) {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        wavesurfer.seekTo(percent);
+    }
+
+    function updateProgress() {
+        const currentTime = wavesurfer.getCurrentTime();
+        const duration = wavesurfer.getDuration();
+        const percent = (currentTime / duration) * 100;
+        
+        progress.style.width = `${percent}%`;
+        currentTimeDisplay.textContent = formatTime(currentTime);
+    }
+
+    function displayDuration(duration) {
+        durationDisplay.textContent = formatTime(duration);
+    }
+
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secondsRemainder = Math.floor(seconds % 60);
+        return `${minutes}:${secondsRemainder.toString().padStart(2, '0')}`;
+    }
+
+    function setupAudioAnalyser() {
+        try {
+            // Make sure backend exists before trying to access it
+            if (!wavesurfer.backend || !wavesurfer.backend.ac) {
+                console.warn("Audio backend not available yet");
+                return;
+            }
+            
+            // Create audio context and analyzer
+            state.audioContext = wavesurfer.backend.ac;
+            state.analyser = state.audioContext.createAnalyser();
+            state.analyser.fftSize = 256;
+            
+            wavesurfer.backend.setFilters([state.analyser]);
+            
+            const bufferLength = state.analyser.frequencyBinCount;
+            state.dataArray = new Uint8Array(bufferLength);
+        } catch (error) {
+            console.error("Error setting up audio analyser:", error);
+        }
+    }
+
+    function initVisualizer() {
+        const container = document.getElementById('canvas-container');
+        
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.z = 20;
+        
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+        
+        // Create visualizer elements
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: 0xff6600,
+            wireframe: true
+        });
+        
+        const bars = [];
+        const barCount = 64; // Number of bars to display
+        
+        for (let i = 0; i < barCount; i++) {
+            const bar = new THREE.Mesh(geometry, material);
+            const angle = (i / barCount) * Math.PI * 2;
+            const radius = 8;
+            
+            bar.position.x = Math.cos(angle) * radius;
+            bar.position.y = Math.sin(angle) * radius;
+            bar.scale.y = 1;
+            
+            scene.add(bar);
+            bars.push(bar);
+        }
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+        
+        // Animation function
+        function animate() {
+            // Only continue the animation if we're playing music
+            if (!state.isPlaying) return;
+            
+            requestAnimationFrame(animate);
+            
+            if (state.analyser && state.dataArray) {
+                state.analyser.getByteFrequencyData(state.dataArray);
+                
+                // Update bars based on frequency data
+                for (let i = 0; i < bars.length; i++) {
+                    const index = Math.floor(i * state.dataArray.length / bars.length);
+                    const value = state.dataArray[index] / 128.0;
+                    
+                    bars[i].scale.y = value * 5 || 0.1; // Minimum height to keep bars visible
+                    
+                    // Colorize based on frequency intensity
+                    const hue = (i / bars.length) * 60 + 15; // Orange-ish hues (15-75)
+                    const saturation = 100;
+                    const lightness = 40 + value * 20; // Brighter for louder sounds
+                    
+                    bars[i].material.color.setHSL(hue/360, saturation/100, lightness/100);
+                }
+                
+                // Rotate the entire scene
+                scene.rotation.y += 0.005;
+                scene.rotation.x = Math.sin(Date.now() * 0.001) * 0.2;
+                
+                // Apply audio reactivity to UI elements
+                applyAudioReactiveEffects(state.dataArray);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        return { animate, scene, camera, renderer, bars };
+    }
+
+    function animateVisualizer() {
+        if (visualizer && state.isPlaying) {
+            visualizer.animate();
+        }
+    }
+
+    function applyAudioReactiveEffects(dataArray) {
+        if (!dataArray) return;
+        
+        // Get average frequency values for different bands
+        const bassAvg = getAverageFrequency(dataArray, 0, 10);
+        const midAvg = getAverageFrequency(dataArray, 10, 100);
+        const highAvg = getAverageFrequency(dataArray, 100, dataArray.length - 1);
+        
+        // Overall volume level (0-1)
+        const bassLevel = bassAvg / 255;
+        const midLevel = midAvg / 255;
+        const highLevel = highAvg / 255;
+        const overallLevel = (bassLevel + midLevel + highLevel) / 3;
+        
+        // Make the current track card pulse with the beat
+        const currentTrackCard = document.querySelector('.track-card.current-track');
+        if (currentTrackCard) {
+            currentTrackCard.classList.add('audio-reactive', 'reactive');
+            
+            // Scale based on bass
+            const scale = 1 + bassLevel * 0.05;
+            currentTrackCard.style.transform = `scale(${scale})`;
+            
+            // Add pulsing effect on strong beats
+            if (bassLevel > 0.6) {
+                currentTrackCard.classList.add('pulsing');
+            } else {
+                currentTrackCard.classList.remove('pulsing');
+            }
+        }
+        
+        // Make other UI elements react
+        document.querySelectorAll('.control-buttons button').forEach(button => {
+            // Subtle movement on mid frequencies
+            const shift = midLevel * 3;
+            button.style.transform = `translateY(${shift}px)`;
+        });
+        
+        // Make the progress bar react to high frequencies
+        const progressBar = document.getElementById('progress-bar');
+        if (progressBar) {
+            progressBar.style.boxShadow = `0 0 ${10 * highLevel}px rgba(255, 102, 0, ${0.5 + highLevel * 0.5})`;
+        }
+        
+        // Change background intensity based on overall level
+        document.body.style.backgroundColor = `rgb(${10 + overallLevel * 5}, ${10 + overallLevel * 5}, ${10 + overallLevel * 5})`;
+        
+        // Apply visual effect to the vignette based on bass
+        const vignette = document.querySelector('.vignette-overlay');
+        if (vignette) {
+            vignette.style.boxShadow = `inset 0 0 ${150 + bassLevel * 100}px rgba(0, 0, 0, ${0.9 - bassLevel * 0.3})`;
+        }
+    }
+
+    function getAverageFrequency(dataArray, startIndex, endIndex) {
+        let sum = 0;
+        let count = 0;
+        
+        for (let i = startIndex; i <= endIndex && i < dataArray.length; i++) {
+            sum += dataArray[i];
+            count++;
+        }
+        
+        return count > 0 ? sum / count : 0;
+    }
+});

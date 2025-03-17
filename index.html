@@ -2,54 +2,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orange Reich Recordings</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Orange Reich Recordings - Tekno Underground</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="importmap">
     {
         "imports": {
-            "tone": "https://cdn.skypack.dev/tone"
+            "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/",
+            "wavesurfer": "https://unpkg.com/wavesurfer.js@7.1.5/dist/wavesurfer.esm.js"
         }
     }
     </script>
 </head>
 <body>
-    <div class="circuit-background" id="circuitBackground"></div>
+    <div class="noise-overlay"></div>
+    <div class="vignette-overlay"></div>
     
     <header>
-        <div class="header-circuit" id="headerCircuit"></div>
-        <div class="logo">
-            <svg viewBox="0 0 400 120">
-                <text x="10" y="60" class="logo-text">ORANGE REICH</text>
-                <text x="10" y="100" class="logo-subtext">RECORDINGS</text>
+        <div class="logo-container">
+            <svg id="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <polygon class="logo-shape" points="100,10 190,50 190,150 100,190 10,150 10,50" fill="none" stroke="#ff6600" stroke-width="5"/>
+                <text x="100" y="120" text-anchor="middle" class="logo-text">ORR</text>
             </svg>
         </div>
+        <h1>ORANGE REICH RECORDINGS</h1>
     </header>
 
     <main>
-        <div class="controls">
-            <button id="shuffleAll" class="neon-button" style="display:none;">SHUFFLE ALL</button>
-        </div>
+        <section id="player-section">
+            <div id="visualizer-container">
+                <div id="waveform"></div>
+                <div id="canvas-container"></div>
+            </div>
+            
+            <div class="player-controls">
+                <div class="track-info">
+                    <h2 id="track-title">Chargement...</h2>
+                    <p id="track-artist">Orange Reich Recordings</p>
+                </div>
+                
+                <div class="control-buttons">
+                    <button id="prev-btn"><i class="fas fa-step-backward"></i></button>
+                    <button id="play-btn"><i class="fas fa-play"></i></button>
+                    <button id="next-btn"><i class="fas fa-step-forward"></i></button>
+                    <div class="volume-control">
+                        <i class="fas fa-volume-up"></i>
+                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+                    </div>
+                    <button id="repeat-btn"><i class="fas fa-repeat"></i></button>
+                    <button id="shuffle-btn"><i class="fas fa-random"></i></button>
+                    <button id="download-btn"><i class="fas fa-download"></i></button>
+                </div>
+                
+                <div class="progress-container">
+                    <span id="current-time">0:00</span>
+                    <div id="progress-bar">
+                        <div id="progress"></div>
+                    </div>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+        </section>
 
-        <div id="trackList" class="track-list">
-            <!-- Tracks will be loaded here dynamically -->
-            <div class="loading">Loading tracks...</div>
-        </div>
+        <section id="tracks-section">
+            <h2>TRACKS</h2>
+            <div id="track-list" class="track-grid">
+                <!-- Tracks will be populated here by JavaScript -->
+                <div class="loading">Chargement des tracks...</div>
+            </div>
+        </section>
     </main>
 
-    <div id="player" class="player">
-        <div class="player-info">
-            <div id="currentTrack">Aucun morceau sélectionné</div>
-            <div class="player-controls">
-                <button id="prevTrack">⏮</button>
-                <button id="playPause">⏯</button>
-                <button id="nextTrack">⏭</button>
-            </div>
-            <div class="progress-bar">
-                <div id="progress"></div>
-            </div>
+    <footer>
+        <p>&copy; 2023 Orange Reich Recordings | Tous droits réservés</p>
+        <div class="social-links">
+            <a href="#" title="SoundCloud"><i class="fab fa-soundcloud"></i></a>
+            <a href="#" title="Bandcamp"><i class="fab fa-bandcamp"></i></a>
+            <a href="#" title="Instagram"><i class="fab fa-instagram"></i></a>
         </div>
-    </div>
-
-    <script src="app.js" type="module"></script>
+    </footer>
+    
+    <script type="module" src="app.js"></script>
 </body>
 </html>
