@@ -318,72 +318,69 @@ class MusicPlayer {
     // }
      
     async playTrack(index) {
-        document.querySelectorAll('.track-card').forEach(card => {
-            card.classList.remove('playing-track');
-        });
-    
+        // S'assurer qu'on ne joue qu'un seul morceau à la fois
         if (this.currentTrackIndex === index && this.isPlaying) {
-            this.player.stop();
-            this.isPlaying = false;
-            document.getElementById('playPause').textContent = '⏯';
+            this.stop();
             return;
         }
     
+        // Mise à jour de l'index
         this.currentTrackIndex = index;
         const track = this.tracks[index];
     
         try {
-            if (!track.url) {
-                throw new Error('Track URL is missing.');
-            }
+            if (!track.url) throw new Error('Track URL is missing.');
     
             document.getElementById('currentTrack').textContent = 'Loading...';
     
-            // 🔥 Télécharger le fichier en blob (contourne le problème de MIME Type)
+            // 🔥 Télécharger le fichier en blob
             const response = await fetch(track.url);
             if (!response.ok) throw new Error("Impossible de télécharger le fichier audio.");
-    
+            
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
             console.log("Generated Blob URL:", blobUrl);
     
-            // ⚠️ Supprimer l'ancien player si nécessaire
-            if (this.player) {
-                this.player.dispose();
-            }
+            // ⚠️ Stopper toute lecture en cours avant de démarrer
+            this.stop();
     
-            // 🎵 Utiliser Tone.Player avec Tone.loaded()
+            // 🎵 Créer un nouveau lecteur Tone.js
             this.player = new Tone.Player(blobUrl).toDestination();
     
+            // Charger le buffer
             await this.player.load();
             console.log("Tone.js buffer loaded!");
+            
+            // Démarrer la lecture
             this.player.start();
             this.isPlaying = true;
     
-            document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
-            document.getElementById('playPause').textContent = '⏸';
+            // Mise à jour de l'affichage
+            this.updateUI(track);
     
-            const trackCards = document.querySelectorAll('.track-card');
-            if (trackCards[index]) {
-                trackCards[index].classList.add('playing-track');
-            }
-    
+            // Lancer la visualisation
             if (!window.audioAnalyzer) {
                 window.audioAnalyzer = new AudioAnalyzer(this.player);
                 this.startVisualization();
             }
-    
         } catch (error) {
             console.error('Error playing track:', error);
             console.warn("Tone.js failed. Using HTML5 Audio fallback.");
     
             // 🔥 Fallback avec HTML5 Audio
-            const audio = new Audio(track.url);
-            audio.play();
-            document.getElementById('playPause').textContent = '⏸';
-            this.isPlaying = true;
+            this.stop(); // S'assurer que tout est stoppé avant de jouer
+    
+            this.htmlAudio = new Audio(track.url);
+            this.htmlAudio.onended = () => this.handleTrackEnd();
+            this.htmlAudio.onerror = () => console.error("HTML5 Audio playback error");
+    
+            this.htmlAudio.play().then(() => {
+                this.isPlaying = true;
+                this.updateUI(track);
+            }).catch(err => console.error("Failed to start HTML5 Audio", err));
         }
-    }    
+    }
+       
     
     
     startVisualization() {
