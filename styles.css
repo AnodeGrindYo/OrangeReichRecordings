@@ -65,11 +65,13 @@ header {
     margin: 0 auto;
     width: 80px;
     height: 80px;
+    position: relative;
 }
 
 #logo {
     width: 100%;
     height: auto;
+    position: absolute;
 }
 
 .logo-shape {
