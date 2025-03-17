@@ -381,6 +381,35 @@ class MusicPlayer {
         }
     }
        
+    stop() {
+        if (this.player && this.isPlaying) {
+            this.player.stop();
+        }
+        if (this.htmlAudio && !this.htmlAudio.paused) {
+            this.htmlAudio.pause();
+            this.htmlAudio.currentTime = 0;
+        }
+        this.isPlaying = false;
+        document.getElementById('playPause').textContent = '⏯';
+    }
+    
+    handleTrackEnd() {
+        this.isPlaying = false;
+        document.getElementById('playPause').textContent = '⏯';
+        if (this.currentTrackIndex < this.tracks.length - 1) {
+            this.playTrack(this.currentTrackIndex + 1);
+        }
+    }
+    
+    updateUI(track) {
+        document.getElementById('currentTrack').textContent = track.fullTitle || track.title;
+        document.getElementById('playPause').textContent = '⏸';
+    
+        // Marquer la piste en cours de lecture
+        document.querySelectorAll('.track-card').forEach((card, i) => {
+            card.classList.toggle('playing-track', i === this.currentTrackIndex);
+        });
+    }
     
     
     startVisualization() {
